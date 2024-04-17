@@ -22,7 +22,7 @@ tagsRouter.get('/:tagName/posts', async (req, res, next) => {
   let { tagName } = req.params;
   
   // decode %23happy to #happy
-  tagName = decodeURIComponent(tagName)
+  tagName = decodeURIComponent(tagName);
 
   try {
     const allPosts = await getPostsByTagName(tagName);
@@ -37,7 +37,7 @@ tagsRouter.get('/:tagName/posts', async (req, res, next) => {
       }
 
       return false;
-    })
+    });
 
     res.send({ posts });
   } catch ({ name, message }) {

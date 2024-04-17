@@ -15,37 +15,25 @@ postsRouter.get('/', async (req, res, next) => {
     const allPosts = await getAllPosts();
 
     const posts = allPosts.filter(post => {
-      // the post is active, doesn't matter who it belongs to
-      if (post.active) {
-        return true;
-      }
-    
-      // the post is not active, but it belogs to the current user
-      if (req.user && post.author.id === req.user.id) {
-        return true;
-      }
-    
-      // none of the above are true
-      return false;
+      // the post is active, or belongs to the current user
+      return post.active || (req.user && post.authorId === req.user.id);
     });
-  
-    res.send({
-      posts
-    });
-  } catch ({ name, message }) {
-    next({ name, message });
+
+    res.send({ posts });
+  } catch (error) {
+    next(error); // Pass error to error handling middleware
   }
 });
 
 postsRouter.post('/', requireUser, async (req, res, next) => {
   const { title, content = "" } = req.body;
 
-  const postData = {};
-
   try {
-    postData.authorId = req.user.id;
-    postData.title = title;
-    postData.content = content;
+    const postData = {
+      authorId: req.user.id,
+      title,
+      content
+    };
 
     const post = await createPost(postData);
 
@@ -53,12 +41,13 @@ postsRouter.post('/', requireUser, async (req, res, next) => {
       res.send(post);
     } else {
       next({
+        status: 500,
         name: 'PostCreationError',
         message: 'There was an error creating your post. Please try again.'
-      })
+      });
     }
-  } catch ({ name, message }) {
-    next({ name, message });
+  } catch (error) {
+    next(error); // Pass error to error handling middleware
   }
 });
 
@@ -83,22 +72,23 @@ postsRouter.patch('/:postId', requireUser, async (req, res, next) => {
   try {
     const originalPost = await getPostById(postId);
 
-    if (originalPost.author.id === req.user.id) {
+    if (originalPost.authorId === req.user.id) {
       const updatedPost = await updatePost(postId, updateFields);
-      res.send({ post: updatedPost })
+      res.send({ post: updatedPost });
     } else {
       next({
+        status: 403,
         name: 'UnauthorizedUserError',
         message: 'You cannot update a post that is not yours'
-      })
+      });
     }
-  } catch ({ name, message }) {
-    next({ name, message });
+  } catch (error) {
+    next(error); // Pass error to error handling middleware
   }
 });
 
 postsRouter.delete('/:postId', requireUser, async (req, res, next) => {
-  res.send({ message: 'under construction' });
+  res.send({ message: 'under construction' }); // Placeholder response
 });
 
 module.exports = postsRouter;

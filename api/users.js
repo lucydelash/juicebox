@@ -35,7 +35,7 @@ usersRouter.post('/login', async (req, res, next) => {
   try {
     const user = await getUserByUsername(username);
 
-    if (user && user.password == password) {
+    if (user && user.password === password) { // Corrected comparison operator
       const token = jwt.sign({ 
         id: user.id, 
         username

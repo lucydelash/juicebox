@@ -1,4 +1,4 @@
-const { Client } = require('pg') // imports the pg module
+const { Client } = require('pg'); // imports the pg module
 
 const client = new Client({
   connectionString: process.env.DATABASE_URL || 'postgres://localhost:5432/juicebox-dev',
@@ -17,8 +17,8 @@ async function createUser({
 }) {
   try {
     const { rows: [ user ] } = await client.query(`
-      INSERT INTO users(username, password, name) 
-      VALUES($1, $2, $3) 
+      INSERT INTO users(username, password, name, location) 
+      VALUES($1, $2, $3, $4) 
       ON CONFLICT (username) DO NOTHING 
       RETURNING *;
     `, [username, password, name, location]);
@@ -44,9 +44,9 @@ async function updateUser(id, fields = {}) {
     const { rows: [ user ] } = await client.query(`
       UPDATE users
       SET ${ setString }
-      WHERE id=${ id }
+      WHERE id=$${ fields.length + 1 }
       RETURNING *;
-    `, Object.values(fields));
+    `, [...Object.values(fields), id]);
 
     return user;
   } catch (error) {
@@ -72,14 +72,14 @@ async function getUserById(userId) {
     const { rows: [ user ] } = await client.query(`
       SELECT id, username, name, location, active
       FROM users
-      WHERE id=${ userId }
-    `);
+      WHERE id=$1;
+    `, [userId]);
 
     if (!user) {
       throw {
         name: "UserNotFoundError",
         message: "A user with that id does not exist"
-      }
+      };
     }
 
     user.posts = await getPostsByUser(userId);
@@ -95,14 +95,14 @@ async function getUserByUsername(username) {
     const { rows: [ user ] } = await client.query(`
       SELECT *
       FROM users
-      WHERE username=$1
+      WHERE username=$1;
     `, [ username ]);
 
     if (!user) {
       throw {
         name: "UserNotFoundError",
         message: "A user with that username does not exist"
-      }
+      };
     }
 
     return user;
@@ -138,7 +138,7 @@ async function createPost({
 
 async function updatePost(postId, fields = {}) {
   // read off the tags & remove that field 
-  const { tags } = fields; // might be undefined
+  const { tags } = fields || {}; // might be undefined
   delete fields.tags;
 
   // build the set string
@@ -152,9 +152,9 @@ async function updatePost(postId, fields = {}) {
       await client.query(`
         UPDATE posts
         SET ${ setString }
-        WHERE id=${ postId }
+        WHERE id=$${ Object.values(fields).length + 1 }
         RETURNING *;
-      `, Object.values(fields));
+      `, [...Object.values(fields), postId]);
     }
 
     // return early if there's no tags to update
@@ -222,13 +222,13 @@ async function getPostById(postId) {
       FROM tags
       JOIN post_tags ON tags.id=post_tags."tagId"
       WHERE post_tags."postId"=$1;
-    `, [postId])
+    `, [postId]);
 
     const { rows: [author] } = await client.query(`
       SELECT id, username, name, location
       FROM users
       WHERE id=$1;
-    `, [post.authorId])
+    `, [post.authorId]);
 
     post.tags = tags;
     post.author = author;
@@ -246,8 +246,8 @@ async function getPostsByUser(userId) {
     const { rows: postIds } = await client.query(`
       SELECT id 
       FROM posts 
-      WHERE "authorId"=${ userId };
-    `);
+      WHERE "authorId"=$1;
+    `, [ userId ]);
 
     const posts = await Promise.all(postIds.map(
       post => getPostById( post.id )
@@ -348,7 +348,7 @@ async function getAllTags() {
       FROM tags;
     `);
 
-    return { rows }
+    return { rows };
   } catch (error) {
     throw error;
   }
@@ -371,4 +371,4 @@ module.exports = {
   getAllTags,
   createPostTag,
   addTagsToPost
-}
+};

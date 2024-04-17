@@ -135,15 +135,17 @@ async function createInitialPosts() {
 
 async function rebuildDB() {
   try {
-    client.connect();
+    await client.connect();
 
     await dropTables();
     await createTables();
     await createInitialUsers();
     await createInitialPosts();
   } catch (error) {
-    console.log("Error during rebuildDB")
+    console.error("Error during rebuildDB", error);
     throw error;
+  } finally {
+    await client.end();
   }
 }
 
@@ -193,13 +195,12 @@ async function testDB() {
 
     console.log("Finished database tests!");
   } catch (error) {
-    console.log("Error during testDB");
+    console.log("Error during testDB", error);
     throw error;
   }
 }
 
-
 rebuildDB()
   .then(testDB)
-  .catch(console.error)
+  .catch(console.error);
   .finally(() => client.end());
